@@ -7,739 +7,699 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="암송 말씀">
-
   <script src="https://cdn.tailwindcss.com"></script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <style>
-    html, body {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden;
-      overscroll-behavior: none;
-      -webkit-overflow-scrolling: auto;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: #EEF2F7;
-      -webkit-tap-highlight-color: transparent;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    #root { width: 100%; height: 100%; }
-
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-thumb { background: #d1d9e6; border-radius: 10px; }
-
-    /* 탭 전환 슬라이드 */
-    @keyframes slideFromRight { from { transform: translateX(22px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    @keyframes slideFromLeft  { from { transform: translateX(-22px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-    .anim-from-right { animation: slideFromRight 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-    .anim-from-left  { animation: slideFromLeft  0.26s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
-
-    .card-press { transition: transform 0.12s ease; }
-    .card-press:active { transform: scale(0.982); }
+    html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;
+      -webkit-overflow-scrolling:auto;position:fixed;top:0;left:0;right:0;bottom:0;
+      background:#F5F0E8;-webkit-tap-highlight-color:transparent;
+      font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;}
+    #root{width:100%;height:100%;}
+    ::-webkit-scrollbar{width:3px;}
+    ::-webkit-scrollbar-thumb{background:#D4C9BA;border-radius:10px;}
+    @keyframes slideFromRight{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes slideFromLeft{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
+    @keyframes fadeUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+    .anim-right{animation:slideFromRight 0.28s cubic-bezier(.2,.8,.2,1) both}
+    .anim-left{animation:slideFromLeft 0.28s cubic-bezier(.2,.8,.2,1) both}
+    .anim-up{animation:fadeUp 0.28s cubic-bezier(.2,.8,.2,1) both}
+    .card-press{transition:transform .12s ease}.card-press:active{transform:scale(.979)}
+    .cat-card{transition:transform .12s ease}.cat-card:active{transform:scale(.955)}
   </style>
 </head>
 <body>
-  <div id="root"></div>
-
+<div id="root"></div>
 <script type="text/babel">
-const { useState, useMemo, useEffect, useRef, useLayoutEffect, useCallback } = React;
+const {useState,useMemo,useEffect,useRef,useLayoutEffect,useCallback}=React;
 
-/* ═══════════════════════════════════════════════
-   ① ICONS
-   ═══════════════════════════════════════════════ */
-const IC = {
-  BookOpen: ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path strokeLinecap="round" strokeLinejoin="round" d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>,
-  Search:   ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  Bookmark: ({c, filled}) => <svg className={c} fill={filled ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>,
-  BmCheck:  ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 012-2h10a2 2 0 012 2v16z"/><path d="m9 10 2 2 4-4"/></svg>,
-  Circle:   ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>,
-  Check:    ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-  X:        ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>,
-  Share:    ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>,
-  Warn:     ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>,
-  Plus:     ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></svg>,
-  Trash:    ({c}) => <svg className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path strokeLinecap="round" strokeLinejoin="round" d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path strokeLinecap="round" strokeLinejoin="round" d="M10 11v6M14 11v6"/><path strokeLinecap="round" strokeLinejoin="round" d="M9 6V4h6v2"/></svg>,
+/* ── ICONS ── */
+const IC={
+  BookOpen:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path strokeLinecap="round" strokeLinejoin="round" d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>,
+  Search:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  Bookmark:({c,s,filled})=><svg className={c} style={s} fill={filled?"currentColor":"none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>,
+  BmCheck:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 012-2h10a2 2 0 012 2v16z"/><path d="m9 10 2 2 4-4"/></svg>,
+  Circle:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/></svg>,
+  Check:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+  X:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>,
+  Share:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>,
+  Plus:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></svg>,
+  ChevLeft:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6"/></svg>,
+  Home2:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  Pencil:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path strokeLinecap="round" strokeLinejoin="round" d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
 };
 
+/* ── CATEGORIES ── */
+const CATS=[
+  {id:'praise',label:'감사와 찬양',emoji:'🙏',color:'#92400E',bg:'#FEF3C7',light:'#FFFBEB'},
+  {id:'love',label:'사랑',emoji:'❤️',color:'#9B1C1C',bg:'#FEE2E2',light:'#FFF5F5'},
+  {id:'faith',label:'믿음',emoji:'✨',color:'#4C1D95',bg:'#EDE9FE',light:'#F5F3FF'},
+  {id:'hope',label:'소망과 위로',emoji:'🕊️',color:'#1E3A8A',bg:'#DBEAFE',light:'#EFF6FF'},
+  {id:'protection',label:'보호와 승리',emoji:'🛡️',color:'#064E3B',bg:'#D1FAE5',light:'#ECFDF5'},
+  {id:'spirit',label:'성령',emoji:'🔥',color:'#7C2D12',bg:'#FFEDD5',light:'#FFF7ED'},
+  {id:'salvation',label:'구원',emoji:'✝️',color:'#7F1D1D',bg:'#FEE2E2',light:'#FFF8F8'},
+  {id:'scripture',label:'말씀과 묵상',emoji:'📖',color:'#0C4A6E',bg:'#E0F2FE',light:'#F0F9FF'},
+  {id:'life',label:'삶과 성화',emoji:'🌿',color:'#14532D',bg:'#DCFCE7',light:'#F0FDF4'},
+  {id:'god',label:'하나님의 성품',emoji:'👑',color:'#713F12',bg:'#FEF9C3',light:'#FEFCE8'},
+  {id:'mission',label:'전도와 사명',emoji:'📣',color:'#831843',bg:'#FCE7F3',light:'#FDF2F8'},
+  {id:'prayer',label:'기도',emoji:'🙌',color:'#3B0764',bg:'#F3E8FF',light:'#FAF5FF'},
+  {id:'other',label:'기타',emoji:'📚',color:'#1E293B',bg:'#F1F5F9',light:'#F8FAFC'},
+];
+const CAT_MAP={
+  '시100:4':'praise','시50:23':'praise','딤전4:4':'praise','빌4:4':'praise','시150:6':'praise','시9:1':'praise','시107:1':'praise','엡5:20':'praise','시30:5':'praise','롬15:13':'praise','계21:4':'praise','시126:5-6':'praise','느8:10':'praise','눅10:20':'praise',
+  '요15:12':'love','고전13:4-5':'love','요일4:19':'love','요13:34-35':'love','요일4:8':'love','막12:30-31':'love','고전13:13':'love','엡3:17-18':'love',
+  '히11:6':'faith','롬1:17':'faith','마17:20':'faith','갈5:6':'faith','롬4:18':'faith','고후5:7':'faith','롬14:22-23':'faith','요20:29':'faith','요6:29':'faith','롬10:11':'faith','히12:2':'faith','잠3:5-6':'faith','잠3:5':'faith','빌4:13':'faith','사30:15':'faith','고후4:18':'faith','갈3:10':'faith',
+  '마11:28-29':'hope','요14:27':'hope','시34:18':'hope','롬8:38-39':'hope','시23:1-3':'hope','시121:1-2':'hope','시27:1':'hope','사30:18':'hope','롬5:3-4':'hope','히10:36':'hope','롬8:25':'hope','사26:3':'hope','애3:22-23':'hope','시23:4':'hope','요14:1':'hope','롬8:28':'hope','고후4:16':'hope','마6:31-34':'hope','벧전5:7':'hope','시118:6':'hope',
+  '시91:1-2':'protection','시91:11-12':'protection','나1:7':'protection','시32:7':'protection','시18:2':'protection','신31:6':'protection','시46:1':'protection','시56:3':'protection','롬8:37':'protection','대하32:8':'protection','출14:14':'protection','롬16:20':'protection','사54:17':'protection','고전15:57':'protection','고후2:14':'protection','롬8:31-34':'protection','시18:34':'protection','시18:39':'protection','시18:47':'protection','계12:11':'protection','잠21:31':'protection','딤전6:12':'protection','마28:18':'protection','엡6:11':'protection','엡6:12':'protection','벧전5:8':'protection','요일5:18':'protection','마10:16':'protection',
+  '롬8:26':'spirit','요14:26':'spirit','막13:11':'spirit','갈5:22-23':'spirit','엡4:30':'spirit','롬8:14':'spirit','요16:13':'spirit','요14:16-17':'spirit','갈4:6':'spirit','빌2:13':'spirit','약4:5':'spirit','고전14:2':'spirit',
+  '요3:16':'salvation','롬3:23':'salvation','롬6:23':'salvation','행4:12':'salvation','요14:6':'salvation','딤전2:5':'salvation','요일5:11-12':'salvation','고후5:17':'salvation','요1:12':'salvation','계3:20':'salvation','갈3:13':'salvation','히8:12':'salvation','히9:22':'salvation','롬5:10':'salvation','행16:31':'salvation','요5:24':'salvation','요8:32':'salvation','엡2:4-5':'salvation','고전11:25':'salvation','히10:19':'salvation','요10:10':'salvation',
+  '딤후3:16-17':'scripture','시119:105':'scripture','시119:11':'scripture','시119:9':'scripture','수1:8':'scripture','골3:16':'scripture','렘23:29':'scripture','시19:14':'scripture','딤전4:5':'scripture',
+  '골3:23-24':'life','엡4:29':'life','롬12:1-2':'life','약1:22':'life','미6:8':'life','고전10:31':'life','갈6:9':'life','벧전2:12':'life','롬12:21':'life','히12:15':'life','잠28:13':'life','약1:2-4':'life','시1:1-2':'life','눅9:23':'life','마5:16':'life','잠2:11':'life','잠16:21':'life','빌4:11':'life','욥23:10':'life','삼상15:22':'life','딤전5:8':'life','수3:5':'life','빌4:5':'life','살전4:3-4':'life','고전10:12-13':'life','롬12:3':'life','롬14:1':'life','엡4:26-27':'life','시51:10':'life','시19:12':'life','마12:36-37':'life','롬14:17':'life','고전15:58':'life','딤전6:17':'life',
+  '요4:24':'god','신6:4':'god','시139:1-3':'god','말3:6':'god','요일1:5':'god','시90:2':'god','창1:27':'god','출20:3':'god','출34:6':'god','창1:1':'god','삼상16:7':'god','말3:10':'god','신28:2':'god','시84:11':'god','시91:14':'god','사9:6':'god','빌2:9-11':'god','요17:21':'god',
+  '마28:19-20':'mission','요15:5':'mission','사43:21':'mission','고전15:20':'mission','요5:29':'mission','행1:11':'mission',
+  '막11:24':'prayer','렘29:13':'prayer','골4:2':'prayer','요16:24':'prayer','요삼1:2':'prayer','막11:25':'prayer','롬12:12':'prayer','시66:18':'prayer',
+};
+const getCatDefault=(ref)=>{ const k=ref.replace(/[\[\]]/g,'').split(',')[0].trim(); return CAT_MAP[k]||'other'; };
+const getCatInfo=(id)=>CATS.find(c=>c.id===id)||CATS[CATS.length-1];
 
-/* ═══════════════════════════════════════════════
-   ② LOGIC
-   ═══════════════════════════════════════════════ */
-
-/* ── [FIX 1] DB 커넥션 캐싱 IIFE ── */
-const dbHelper = (() => {
-  let _db = null;
-  const init = () => new Promise((res, rej) => {
-    if (_db) return res(_db);
-    const r = indexedDB.open('BibleAppDB', 1);
-    r.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains('state')) e.target.result.createObjectStore('state'); };
-    r.onsuccess = e => { _db = e.target.result; res(_db); };
-    r.onerror   = e => rej(e.target.error);
+/* ── DB ── */
+const dbHelper=(()=>{
+  let _db=null;
+  const init=()=>new Promise((res,rej)=>{
+    if(_db)return res(_db);
+    const r=indexedDB.open('BibleAppDB_v3',1);
+    r.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains('state'))e.target.result.createObjectStore('state');};
+    r.onsuccess=e=>{_db=e.target.result;res(_db);};
+    r.onerror=e=>rej(e.target.error);
   });
-  const run = async (mode, fn) => {
-    const db = await init();
-    return new Promise((res, rej) => {
-      const tx = db.transaction('state', mode);
-      fn(tx.objectStore('state'), res, rej);
-      tx.onerror = () => rej(tx.error);
+  const run=async(mode,fn)=>{
+    const db=await init();
+    return new Promise((res,rej)=>{
+      const tx=db.transaction('state',mode);
+      fn(tx.objectStore('state'),res,rej);
+      tx.onerror=()=>rej(tx.error);
     });
   };
-  return {
-    get: (key)      => run('readonly',  (s, res) => { const r = s.get(key); r.onsuccess = () => res(r.result); }),
-    set: (key, val) => run('readwrite', (s, res) => { s.put(val, key); s.transaction.oncomplete = res; }),
+  return{
+    get:(key)=>run('readonly',(s,res)=>{const r=s.get(key);r.onsuccess=()=>res(r.result);}),
+    set:(key,val)=>run('readwrite',(s,res)=>{s.put(val,key);s.transaction.oncomplete=res;}),
   };
 })();
 
-const parseVersesData = (rawText) => {
-  const blocks = rawText.split(/\n(?=\[)/);
-  let id = 1;
-  return blocks.map(block => {
-    const m = block.match(/^(\[[^\]]+\])\s*([\s\S]+)$/);
-    if (!m) return null;
-    return { id: id++, reference: m[1], text: m[2].trim(), isMemorized: false, isBookmarked: false };
+/* ── PARSE ── */
+const parseVerses=(raw)=>{
+  const blocks=raw.split(/\n(?=\[)/);
+  let id=1;
+  return blocks.map(b=>{
+    const m=b.match(/^(\[[^\]]+\])\s*([\s\S]+)$/);
+    if(!m)return null;
+    const ref=m[1];
+    return{id:id++,reference:ref,text:m[2].trim(),category:getCatDefault(ref),isMemorized:false,isBookmarked:false};
   }).filter(Boolean);
 };
 
-const TABS = ['all', 'unmemorized', 'bookmarked'];
-const DEFAULT_TAB_DATA = () => ({
-  all:         { scroll: 0, visibleCount: 40 },
-  unmemorized: { scroll: 0, visibleCount: 40 },
-  bookmarked:  { scroll: 0, visibleCount: 40 },
-});
+const TABS=['home','search','bookmarked','unmemorized'];
+const DEF_SCROLLS=()=>({home:0,search:0,bookmarked:0,unmemorized:0});
 
-function useBibleAppLogic(rawText) {
-  const baseVerses = React.useMemo(() => parseVersesData(rawText), []);
-  const [verses,   setVerses]   = useState(() => parseVersesData(rawText));
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isScrollRestored, setIsScrollRestored] = useState(false);
+/* ── LOGIC ── */
+function useBibleLogic(raw){
+  const base=useMemo(()=>parseVerses(raw),[]);
+  const [verses,setVerses]=useState(()=>parseVerses(raw));
+  const [isLoaded,setIsLoaded]=useState(false);
+  const [scrollOK,setScrollOK]=useState(false);
 
-  /* ── 최초 UI 상태 localStorage 복원 ── */
-  const initialUI = useMemo(() => {
-    const def = DEFAULT_TAB_DATA();
-    try {
-      const s = JSON.parse(localStorage.getItem('bible_ui') || 'null');
-      if (s?.tabData) return {
-        activeTab:   s.activeTab   || 'all',
-        searchQuery: s.searchQuery || '',
-        tabData: { all: {...def.all,...s.tabData.all}, unmemorized: {...def.unmemorized,...s.tabData.unmemorized}, bookmarked: {...def.bookmarked,...s.tabData.bookmarked} }
-      };
-    } catch(e) {}
-    return { activeTab: 'all', searchQuery: '', tabData: def };
-  }, []);
+  const initUI=useMemo(()=>{
+    try{
+      const s=JSON.parse(localStorage.getItem('bible_v3')||'null');
+      if(s)return{tab:s.tab||'home',scrolls:{...DEF_SCROLLS(),...(s.scrolls||{})},q:s.q||''};
+    }catch(e){}
+    return{tab:'home',scrolls:DEF_SCROLLS(),q:''};
+  },[]);
 
-  const [activeTab,    setActiveTab]    = useState(initialUI.activeTab);
-  const [searchQuery,  setSearchQuery]  = useState(initialUI.searchQuery);
-  const [tabStates,    setTabStates]    = useState(initialUI.tabData);
-  const [animDir,      setAnimDir]      = useState('from-right');
-  const [visibleCount, setVisibleCount] = useState(initialUI.tabData[initialUI.activeTab].visibleCount);
+  const [tab,setTab]=useState(initUI.tab);
+  const [cat,setCat]=useState(null);         /* selected category */
+  const [scrolls,setScrolls]=useState(initUI.scrolls);
+  const [q,setQ]=useState(initUI.q);
+  const [vc,setVc]=useState(40);             /* visibleCount */
+  const [toast,setToast]=useState('');
 
-  const [toastMsg, setToastMsg] = useState('');
+  const vcRef=useRef(40);
+  const scrollsRef=useRef(initUI.scrolls);
+  const catRef=useRef(null);
+  useEffect(()=>{vcRef.current=vc;},[vc]);
+  useEffect(()=>{scrollsRef.current=scrolls;},[scrolls]);
+  useEffect(()=>{catRef.current=cat;},[cat]);
 
-  /* ── [FIX 2] ref로 stale-closure 차단 ── */
-  const visibleCountRef = useRef(visibleCount);
-  const tabStatesRef    = useRef(tabStates);
-  useEffect(() => { visibleCountRef.current = visibleCount; }, [visibleCount]);
-  useEffect(() => { tabStatesRef.current    = tabStates;    }, [tabStates]);
+  const el=()=>document.getElementById('bs');
+  const saveUI=useCallback((t,sc,query)=>{
+    try{localStorage.setItem('bible_v3',JSON.stringify({tab:t,scrolls:sc,q:query}));}catch(e){}
+  },[]);
 
-  const getScroll = () => document.getElementById('bible-scroll');
-
-  /* ── IndexedDB: 초기 로드 (암송/책갈피 상태 + 사용자 추가 구절) ── */
-  useEffect(() => {
-    Promise.all([
-      dbHelper.get('bible_save_data'),
-      dbHelper.get('bible_custom_verses'),
-    ]).then(([saved, custom]) => {
-      // 1) 사용자가 직접 추가한 구절 병합
-      let merged = [...baseVerses];
-      if (Array.isArray(custom) && custom.length > 0) {
-        const maxId = Math.max(...merged.map(v => v.id), 0);
-        const customWithId = custom.map((v, i) => ({ ...v, id: maxId + i + 1 }));
-        merged = [...merged, ...customWithId];
+  /* load */
+  useEffect(()=>{
+    Promise.all([dbHelper.get('bsave'),dbHelper.get('bcustom')]).then(([saved,custom])=>{
+      let merged=[...base];
+      if(Array.isArray(custom)&&custom.length>0){
+        const mx=Math.max(...merged.map(v=>v.id),0);
+        merged=[...merged,...custom.map((v,i)=>({...v,id:mx+i+1,category:v.category||getCatDefault(v.reference)}))];
       }
-      // 2) 암송/책갈피 상태 복원 (reference 기준, 구버전 id 호환)
-      if (saved) {
-        merged = merged.map(v => {
-          const data = saved[v.reference] || saved[v.id] || null;
-          return data ? { ...v, isMemorized: data.isMemorized||false, isBookmarked: data.isBookmarked||false } : v;
+      if(saved){
+        merged=merged.map(v=>{
+          const d=saved[v.reference]||saved[v.id]||null;
+          return d?{...v,isMemorized:d.m||false,isBookmarked:d.b||false,category:d.c||v.category}:v;
         });
       }
-      setVerses(merged);
-      setIsLoaded(true);
-    }).catch(() => setIsLoaded(true));
-  }, []);
+      setVerses(merged);setIsLoaded(true);
+    }).catch(()=>setIsLoaded(true));
+  },[]);
 
-  /* ── IndexedDB: 암송/책갈피 저장 (reference 키) ── */
-  useEffect(() => {
-    if (!isLoaded) return;
-    const toSave = {};
-    verses.forEach(v => {
-      if (v.isMemorized || v.isBookmarked)
-        toSave[v.reference] = { isMemorized: v.isMemorized, isBookmarked: v.isBookmarked };
+  /* save memorized/bookmarked/category */
+  useEffect(()=>{
+    if(!isLoaded)return;
+    const out={};
+    verses.forEach(v=>{
+      const dc=getCatDefault(v.reference);
+      if(v.isMemorized||v.isBookmarked||v.category!==dc)
+        out[v.reference]={m:v.isMemorized,b:v.isBookmarked,c:v.category};
     });
-    dbHelper.set('bible_save_data', toSave);
-  }, [verses, isLoaded]);
+    dbHelper.set('bsave',out);
+  },[verses,isLoaded]);
 
-  /* ── IndexedDB: 사용자 추가 구절 저장 ── */
-  useEffect(() => {
-    if (!isLoaded) return;
-    const custom = verses.filter(v => v.isCustom).map(({ id, ...rest }) => rest); // id 제외 저장
-    dbHelper.set('bible_custom_verses', custom);
-  }, [verses, isLoaded]);
+  /* save custom */
+  useEffect(()=>{
+    if(!isLoaded)return;
+    dbHelper.set('bcustom',verses.filter(v=>v.isCustom).map(({id,...r})=>r));
+  },[verses,isLoaded]);
 
-  /* ── 구절 추가 ── */
-  const addVerse = useCallback((reference, text) => {
-    const ref = reference.trim().startsWith('[') ? reference.trim() : `[${reference.trim()}]`;
-    setVerses(prev => {
-      const maxId = Math.max(...prev.map(v => v.id), 0);
-      return [...prev, { id: maxId + 1, reference: ref, text: text.trim(), isMemorized: false, isBookmarked: false, isCustom: true }];
-    });
-  }, []);
+  /* tab change */
+  const changeTab=useCallback((nt)=>{
+    const sc={...scrollsRef.current,[tab]:el()?.scrollTop||0};
+    setScrolls(sc);setCat(null);setQ('');setVc(40);setScrollOK(false);setTab(nt);saveUI(nt,sc,'');
+  },[tab,saveUI]);
 
-  /* ── 구절 삭제 (사용자 추가 구절만) ── */
-  const deleteVerse = useCallback((id) => {
-    setVerses(prev => prev.filter(v => v.id !== id));
-  }, []);
+  /* category select */
+  const selectCat=useCallback((cid)=>{
+    const sc={...scrollsRef.current,[tab]:el()?.scrollTop||0};
+    setScrolls(sc);setCat(cid);setVc(40);setScrollOK(true);
+    setTimeout(()=>{el()?.scrollTo({top:0,behavior:'instant'});},0);
+  },[tab]);
 
-  /* ── 탭 변경 ── */
-  const handleTabChange = useCallback((newTab) => {
-    if (activeTab === newTab) return;
-    setIsScrollRestored(false);
+  /* back */
+  const goBack=useCallback(()=>{
+    setCat(null);setVc(40);setScrollOK(false);
+    setTimeout(()=>{
+      const e=el();
+      if(e){e.scrollTop=scrollsRef.current[tab]||0;setScrollOK(true);}
+    },50);
+  },[tab]);
 
-    const el = getScroll();
-    const curScroll = el ? el.scrollTop : 0;
-    const curVC     = visibleCountRef.current;
+  /* scroll restore on tab switch */
+  useLayoutEffect(()=>{
+    if(!isLoaded||catRef.current)return;
+    const e=el();if(!e)return;
+    const t=setTimeout(()=>{e.scrollTop=scrollsRef.current[tab]||0;setScrollOK(true);},70);
+    return()=>clearTimeout(t);
+  },[tab,isLoaded]);
 
-    setAnimDir(TABS.indexOf(newTab) > TABS.indexOf(activeTab) ? 'from-right' : 'from-left');
-
-    setTabStates(prev => {
-      const next = { ...prev, [activeTab]: { scroll: curScroll, visibleCount: curVC } };
-      localStorage.setItem('bible_ui', JSON.stringify({ activeTab: newTab, searchQuery, tabData: next }));
-      return next;
-    });
-    setActiveTab(newTab);
-    setVisibleCount(tabStatesRef.current[newTab]?.visibleCount || 40);
-  }, [activeTab, searchQuery]);
-
-  /* ── 스크롤 복원 (탭 전환용) ── */
-  const restoringFromSearchRef = useRef(false);
-  useLayoutEffect(() => {
-    if (!isLoaded || restoringFromSearchRef.current) return;
-    const el = getScroll();
-    if (!el) return;
-    const t = setTimeout(() => {
-      if (restoringFromSearchRef.current) return;
-      el.scrollTop = tabStatesRef.current[activeTab]?.scroll || 0;
-      setIsScrollRestored(true);
-    }, 80);
-    return () => clearTimeout(t);
-  }, [activeTab, isLoaded]);
-
-  /* ── 검색 상태 보존/복원 ── */
-  const preSearchRef   = useRef({ scroll: 0, visibleCount: 40 });
-  const isSearchingRef = useRef(searchQuery !== '');
-
-  const handleSearchQuery = useCallback((val) => {
-    const el = getScroll();
-    if (val !== '' && !isSearchingRef.current) {
-      preSearchRef.current = { scroll: el?.scrollTop || 0, visibleCount: visibleCountRef.current };
-      isSearchingRef.current = true;
-      setVisibleCount(40);
-      if (el) el.scrollTop = 0;
-    } else if (val === '' && isSearchingRef.current) {
-      isSearchingRef.current = false;
-      restoringFromSearchRef.current = true;
-      setIsScrollRestored(false);
-      setVisibleCount(preSearchRef.current.visibleCount);
-    }
-    setSearchQuery(val);
-  }, []);
-
-  // 검색 종료 후 DOM 업데이트가 끝난 시점(useLayoutEffect)에 scrollTop 복원
-  // rAF/setTimeout 대비 iOS Safari scroll-reset보다 반드시 앎서 실행됨
-  useLayoutEffect(() => {
-    if (!restoringFromSearchRef.current) return;
-    const el = getScroll();
-    if (el) {
-      el.style.overflowAnchor = 'none';
-      el.scrollTop = preSearchRef.current.scroll;
-      el.style.overflowAnchor = '';
-    }
-    restoringFromSearchRef.current = false;
-    setIsScrollRestored(true);
-  }, [searchQuery, visibleCount]);
-
-  /* ── 스크롤 위치 저장 ── */
-  useEffect(() => {
-    if (!isLoaded) return;
+  /* save scroll position */
+  useEffect(()=>{
+    if(!isLoaded)return;
     let tid;
-    const save = () => {
-      const el = getScroll();
-      if (!el) return;
-      setTabStates(prev => {
-        const next = { ...prev, [activeTab]: { scroll: el.scrollTop, visibleCount: visibleCountRef.current } };
-        localStorage.setItem('bible_ui', JSON.stringify({ activeTab, searchQuery, tabData: next }));
-        return next;
-      });
+    const save=()=>{
+      if(catRef.current)return;
+      const e=el();if(!e)return;
+      const sc={...scrollsRef.current,[tab]:e.scrollTop};
+      setScrolls(sc);saveUI(tab,sc,q);
     };
-    const onScroll = () => { clearTimeout(tid); tid = setTimeout(save, 150); };
-    const onHide   = () => { if (document.visibilityState === 'hidden') save(); };
-    const el = getScroll();
-    el?.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('visibilitychange', onHide);
-    return () => { el?.removeEventListener('scroll', onScroll); window.removeEventListener('visibilitychange', onHide); clearTimeout(tid); };
-  }, [activeTab, searchQuery, isLoaded]);
+    const onS=()=>{clearTimeout(tid);tid=setTimeout(save,150);};
+    const onH=()=>{if(document.visibilityState==='hidden')save();};
+    el()?.addEventListener('scroll',onS,{passive:true});
+    window.addEventListener('visibilitychange',onH);
+    return()=>{el()?.removeEventListener('scroll',onS);window.removeEventListener('visibilitychange',onH);clearTimeout(tid);};
+  },[tab,isLoaded,q,saveUI]);
 
-  /* ── 토글 ── */
-  const toggleMemorized  = useCallback((id) => setVerses(prev => prev.map(v => v.id === id ? {...v, isMemorized:  !v.isMemorized}  : v)), []);
-  const toggleBookmark   = useCallback((id) => setVerses(prev => prev.map(v => v.id === id ? {...v, isBookmarked: !v.isBookmarked} : v)), []);
+  const changeQ=useCallback((v)=>{setQ(v);setVc(40);el()?.scrollTo({top:0,behavior:'instant'});},[]);
+  const toggleM=useCallback((id)=>setVerses(p=>p.map(v=>v.id===id?{...v,isMemorized:!v.isMemorized}:v)),[]);
+  const toggleB=useCallback((id)=>setVerses(p=>p.map(v=>v.id===id?{...v,isBookmarked:!v.isBookmarked}:v)),[]);
+  const updateCat=useCallback((id,nc)=>setVerses(p=>p.map(v=>v.id===id?{...v,category:nc}:v)),[]);
+  const addVerse=useCallback((ref,text,category)=>{
+    const r=ref.trim().startsWith('[')?ref.trim():`[${ref.trim()}]`;
+    setVerses(p=>{const mx=Math.max(...p.map(v=>v.id),0);return[...p,{id:mx+1,reference:r,text:text.trim(),category:category||'other',isMemorized:false,isBookmarked:false,isCustom:true}];});
+  },[]);
 
-  /* ── 필터링 ── */
-  const filteredVerses = useMemo(() => verses.filter(v => {
-    if (activeTab === 'unmemorized' && v.isMemorized)  return false;
-    if (activeTab === 'bookmarked'  && !v.isBookmarked) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      return v.reference.includes(searchQuery.trim()) || v.text.includes(searchQuery.trim());
-    }
+  const filtered=useMemo(()=>verses.filter(v=>{
+    if(tab==='bookmarked'&&!v.isBookmarked)return false;
+    if(tab==='unmemorized'&&v.isMemorized)return false;
+    if(cat&&v.category!==cat)return false;
+    if(q.trim()){const lq=q.trim().toLowerCase();return v.reference.toLowerCase().includes(lq)||v.text.toLowerCase().includes(lq);}
     return true;
-  }), [verses, activeTab, searchQuery]);
+  }),[verses,tab,cat,q]);
 
-  const displayedVerses = useMemo(() => filteredVerses.slice(0, visibleCount), [filteredVerses, visibleCount]);
-  const handleLoadMore  = useCallback(() => setVisibleCount(p => p + 40), []);
+  const displayed=useMemo(()=>filtered.slice(0,vc),[filtered,vc]);
+  const loadMore=useCallback(()=>setVc(p=>p+40),[]);
 
-  /* ── 통계 ── */
-  const stats = useMemo(() => ({
-    total:      verses.length,
-    memorized:  verses.filter(v => v.isMemorized).length,
-    bookmarked: verses.filter(v => v.isBookmarked).length,
-  }), [verses]);
+  const stats=useMemo(()=>({
+    total:verses.length,
+    memorized:verses.filter(v=>v.isMemorized).length,
+    bookmarked:verses.filter(v=>v.isBookmarked).length,
+  }),[verses]);
 
-  /* ── 공유 ── */
-  const handleShare = useCallback(async (verse) => {
-    const text = `${verse.reference}\n${verse.text}`;
-    if (navigator.share) {
-      try { await navigator.share({ title: '말씀 공유', text }); } catch(e) {}
-    } else {
-      try {
-        const ta = document.createElement('textarea');
-        ta.value = text; document.body.appendChild(ta); ta.select();
-        document.execCommand('copy'); document.body.removeChild(ta);
-        showToast('말씀이 복사되었습니다!');
-      } catch(e) {}
-    }
-  }, []);
+  const catStats=useMemo(()=>{
+    const m={};
+    CATS.forEach(ct=>{
+      const cv=verses.filter(v=>v.category===ct.id);
+      m[ct.id]={total:cv.length,mem:cv.filter(v=>v.isMemorized).length,unm:cv.filter(v=>!v.isMemorized).length};
+    });
+    return m;
+  },[verses]);
 
-  const showToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 2500); };
+  const showToast=useCallback((msg)=>{setToast(msg);setTimeout(()=>setToast(''),2500);},[]);
+  const share=useCallback(async(verse)=>{
+    const txt=`${verse.reference}\n${verse.text}`;
+    if(navigator.share){try{await navigator.share({title:'말씀 공유',text:txt});}catch(e){}}
+    else{try{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('말씀이 복사되었습니다!');}catch(e){}}
+  },[showToast]);
+  const toTop=useCallback(()=>el()?.scrollTo({top:0,behavior:'smooth'}),[]);
 
-  const scrollToTop = useCallback(() => getScroll()?.scrollTo({ top: 0, behavior: 'smooth' }), []);
-
-  return {
-    verses, displayedVerses, filteredVersesCount: filteredVerses.length,
-    activeTab, handleTabChange, searchQuery, handleSearchQuery,
-    toggleMemorized, toggleBookmark, handleShare,
-    addVerse, deleteVerse,
-    visibleCount, handleLoadMore,
-    toastMsg, showToast, scrollToTop, animDir, isScrollRestored, isLoaded, stats,
-  };
+  return{verses,displayed,filteredCount:filtered.length,tab,changeTab,cat,selectCat,goBack,q,changeQ,scrollOK,toggleM,toggleB,updateCat,share,addVerse,vc,loadMore,toast,showToast,toTop,isLoaded,stats,catStats};
 }
 
+/* ── UI COMPONENTS ── */
 
-/* ═══════════════════════════════════════════════
-   ③ UI COMPONENTS
-   ═══════════════════════════════════════════════ */
+const HiText=({text,q})=>{
+  if(!q||!q.trim())return <span>{text}</span>;
+  const esc=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const parts=text.split(new RegExp(`(${esc})`,'gi'));
+  return<span>{parts.map((p,i)=>p.toLowerCase()===q.toLowerCase()?<span key={i} className="font-extrabold bg-yellow-200 rounded px-0.5" style={{color:'#92400E'}}>{p}</span>:<span key={i}>{p}</span>)}</span>;
+};
 
-/* ── 구절 추가 Bottom Sheet ── */
-const AddVerseSheet = ({ onClose, onAdd, showToast }) => {
-  const [ref,  setRef]  = React.useState('');
-  const [text, setText] = React.useState('');
-  const [dragY, setDragY] = React.useState(0);
-  const [closing, setClosing] = React.useState(false);
-  const startY = React.useRef(null);
-  const sheetRef = React.useRef(null);
-
-  const close = () => {
-    setClosing(true);
-    setTimeout(onClose, 280);
-  };
-
-  const onTouchStart = e => { startY.current = e.touches[0].clientY; };
-  const onTouchMove  = e => {
-    const dy = e.touches[0].clientY - startY.current;
-    if (dy > 0) { e.preventDefault(); setDragY(dy); }
-  };
-  const onTouchEnd = () => {
-    if (dragY > 100) { close(); } else { setDragY(0); }
-    startY.current = null;
-  };
-
-  const handleAdd = () => {
-    const refTrimmed = ref.trim();
-    const textTrimmed = text.trim();
-    if (!refTrimmed) { showToast('장절을 입력해 주세요'); return; }
-    if (!textTrimmed) { showToast('말씀 본문을 입력해 주세요'); return; }
-    onAdd(refTrimmed, textTrimmed);
-    showToast('✅ 구절이 추가되었습니다!');
-    close();
-  };
-
-  const sheetStyle = closing
-    ? { transform: 'translateY(100%)', transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)' }
-    : dragY > 0
-      ? { transform: `translateY(${dragY}px)`, transition: 'none' }
-      : { transform: 'translateY(0)', transition: 'transform 0.32s cubic-bezier(0.32,0.72,0,1)' };
-
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center">
-      {/* 딤 배경 */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close}
-        style={{ opacity: closing ? 0 : 1, transition: 'opacity 0.28s ease' }} />
-      {/* 시트 */}
-      <div ref={sheetRef} className="relative w-full max-w-lg bg-white rounded-t-3xl shadow-2xl z-10 pb-safe"
-        style={{ ...sheetStyle, paddingBottom: 'max(env(safe-area-inset-bottom), 1.5rem)' }}>
-        {/* 드래그 핸들 */}
-        <div className="flex justify-center pt-3 pb-1 cursor-grab touch-none"
-          onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-          <div className="w-10 h-1 bg-gray-200 rounded-full" />
-        </div>
-        {/* 헤더 */}
-        <div className="flex items-center justify-between px-6 pt-2 pb-4 border-b border-gray-100">
-          <h2 className="text-base font-extrabold text-gray-900">📖 구절 직접 추가</h2>
-          <button onClick={close} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center active:bg-gray-200">
-            <IC.X c="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-        {/* 입력 폼 */}
-        <div className="px-6 pt-5 space-y-4">
-          {/* 장절 입력 */}
-          <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1.5">장절 <span className="text-red-400">*</span></label>
-            <input
-              type="text"
-              value={ref}
-              onChange={e => setRef(e.target.value)}
-              placeholder="예) 롬8:28  또는  [롬8:28]"
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl text-[15px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:bg-white transition-all border border-gray-100"
-            />
-            <p className="mt-1 text-[10px] text-gray-400">대괄호 없이 입력해도 자동으로 추가됩니다</p>
+/* VerseCard — 카테고리 태그 탭으로 변경 가능 */
+const VerseCard=React.memo(({verse,onM,onB,onShare,q,onCatTap})=>{
+  const ct=getCatInfo(verse.category);
+  return(
+    <div className={`bg-white mx-4 my-1.5 rounded-2xl border shadow-sm card-press overflow-hidden ${verse.isMemorized?'border-violet-100':'border-stone-100'}`}>
+      <div className="flex">
+        <div className="w-1 shrink-0" style={{backgroundColor:verse.isMemorized?'#7C3AED':ct.color,opacity:.42}}/>
+        <div className="flex-1 px-4 py-4">
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex-1 mr-2 min-w-0">
+              <span className="font-bold text-sm" style={{color:ct.color}}><HiText text={verse.reference} q={q}/></span>
+              <button onClick={()=>onCatTap(verse)}
+                className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5 align-middle active:opacity-60"
+                style={{backgroundColor:ct.bg,color:ct.color}}>
+                {ct.emoji} {ct.label}
+              </button>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={()=>onShare(verse)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{backgroundColor:'#F9FAFB'}}><IC.Share c="w-4 h-4 text-gray-400"/></button>
+              <button onClick={()=>onB(verse.id)} className="w-8 h-8 rounded-xl flex items-center justify-center active:scale-90" style={{backgroundColor:verse.isBookmarked?'#FEF3C7':'#F9FAFB'}}>
+                {verse.isBookmarked?<IC.BmCheck c="w-4 h-4" s={{color:'#D97706'}}/>:<IC.Bookmark c="w-4 h-4 text-gray-300" filled={false}/>}
+              </button>
+              <button onClick={()=>onM(verse.id)} className="w-8 h-8 rounded-xl flex items-center justify-center active:scale-90" style={{backgroundColor:verse.isMemorized?'#EDE9FE':'#F9FAFB'}}>
+                {verse.isMemorized?<IC.Check c="w-4 h-4" s={{color:'#7C3AED'}}/>:<IC.Circle c="w-4 h-4 text-gray-300"/>}
+              </button>
+            </div>
           </div>
-          {/* 본문 입력 */}
-          <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1.5">말씀 본문 <span className="text-red-400">*</span></label>
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder="말씀 본문을 입력하세요..."
-              rows={4}
-              className="w-full px-4 py-3 bg-gray-50 rounded-xl text-[15px] text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400/40 focus:bg-white transition-all border border-gray-100 resize-none leading-relaxed"
-            />
-          </div>
-          {/* 추가 버튼 */}
-          <button onClick={handleAdd}
-            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-extrabold rounded-2xl shadow-md shadow-indigo-200 transition-colors text-[15px]">
-            ✚ 구절 추가하기
-          </button>
+          <p className={`text-sm leading-relaxed whitespace-pre-line ${verse.isMemorized?'text-gray-400':'text-gray-700'}`}>
+            <HiText text={verse.text} q={q}/>
+          </p>
         </div>
+      </div>
+    </div>
+  );
+});
+
+/* CategoryGrid */
+const CatGrid=({catStats,onSelect,isUnm})=>{
+  const visible=CATS.filter(ct=>{
+    const s=catStats[ct.id];
+    if(!s||s.total===0)return false;
+    if(isUnm&&s.unm===0)return false;
+    return true;
+  });
+  return(
+    <div className="px-4 pt-3 pb-8 grid grid-cols-2 gap-3">
+      {visible.map(ct=>{
+        const s=catStats[ct.id]||{total:0,mem:0,unm:0};
+        const cnt=isUnm?s.unm:s.total;
+        const pct=s.total>0?Math.round(s.mem/s.total*100):0;
+        return(
+          <div key={ct.id} onClick={()=>onSelect(ct.id)} className="cat-card cursor-pointer rounded-2xl overflow-hidden border" style={{backgroundColor:ct.light,borderColor:ct.bg+'cc'}}>
+            <div className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl" style={{backgroundColor:ct.bg}}>{ct.emoji}</div>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full" style={{backgroundColor:ct.bg,color:ct.color}}>{cnt}구절</span>
+              </div>
+              <p className="text-[13px] font-bold text-gray-800">{ct.label}</p>
+              {!isUnm&&(
+                <div className="mt-2.5">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] text-gray-400">암송 완료</span>
+                    <span className="text-[9px] font-bold" style={{color:ct.color}}>{pct}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{backgroundColor:ct.bg}}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{width:`${pct}%`,backgroundColor:ct.color}}/>
+                  </div>
+                </div>
+              )}
+              {isUnm&&<p className="text-[10px] mt-1.5" style={{color:ct.color}}>탭하여 학습 →</p>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+/* BottomSheet 공통 래퍼 */
+const Sheet=({onClose,children,zIndex=80})=>{
+  const [closing,setClosing]=React.useState(false);
+  const [dragY,setDragY]=React.useState(0);
+  const sy=React.useRef(null);
+  const close=()=>{setClosing(true);setTimeout(onClose,280);};
+  const onTS=e=>{sy.current=e.touches[0].clientY;};
+  const onTM=e=>{const dy=e.touches[0].clientY-sy.current;if(dy>0){e.preventDefault();setDragY(dy);}};
+  const onTE=()=>{if(dragY>80)close();else setDragY(0);sy.current=null;};
+  const style=closing?{transform:'translateY(100%)',transition:'transform .28s cubic-bezier(.4,0,.2,1)'}
+    :dragY>0?{transform:`translateY(${dragY}px)`,transition:'none'}
+    :{transform:'translateY(0)',transition:'transform .32s cubic-bezier(.32,.72,0,1)'};
+  return(
+    <div className="fixed inset-0 flex items-end justify-center" style={{zIndex}}>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} style={{opacity:closing?0:1,transition:'opacity .28s ease'}}/>
+      <div className="relative w-full max-w-lg bg-white rounded-t-3xl shadow-2xl z-10" style={{...style,paddingBottom:'max(env(safe-area-inset-bottom),1.5rem)'}}>
+        <div className="flex justify-center pt-3 pb-1 touch-none cursor-grab" onTouchStart={onTS} onTouchMove={onTM} onTouchEnd={onTE}>
+          <div className="w-10 h-1 bg-gray-200 rounded-full"/>
+        </div>
+        {children(close)}
       </div>
     </div>
   );
 };
 
-/* ── Toast ── */
-const Toast = ({ message }) => {
-  if (!message) return null;
-  return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[70] pointer-events-none">
-      <div className="bg-gray-900 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap">
-        {message}
+/* CategoryPickerSheet */
+const CatPickerSheet=({verse,onClose,onSelect})=>(
+  <Sheet onClose={onClose} zIndex={90}>
+    {(close)=>(
+      <>
+        <div className="px-6 pt-2 pb-3 border-b border-gray-100">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-base font-extrabold text-gray-900">카테고리 변경</h2>
+            <button onClick={close} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center active:bg-gray-200"><IC.X c="w-4 h-4 text-gray-500"/></button>
+          </div>
+          <p className="text-xs text-gray-400 truncate">{verse.reference}</p>
+          <div className="flex items-center gap-1.5 mt-2">
+            <span className="text-[10px] text-gray-400">현재:</span>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{backgroundColor:getCatInfo(verse.category).bg,color:getCatInfo(verse.category).color}}>
+              {getCatInfo(verse.category).emoji} {getCatInfo(verse.category).label}
+            </span>
+          </div>
+        </div>
+        <div className="px-4 pt-3 pb-2 overflow-y-auto" style={{maxHeight:'60vh'}}>
+          <div className="grid grid-cols-2 gap-2">
+            {CATS.map(ct=>{
+              const isActive=verse.category===ct.id;
+              return(
+                <button key={ct.id} onClick={()=>{onSelect(verse.id,ct.id);close();}}
+                  className="flex items-center gap-2.5 px-3 py-3 rounded-2xl border-2 text-left active:scale-95 transition-all"
+                  style={isActive?{backgroundColor:ct.color,borderColor:ct.color}:{backgroundColor:ct.light,borderColor:ct.bg}}>
+                  <span className="text-xl">{ct.emoji}</span>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-bold truncate" style={{color:isActive?'rgba(255,255,255,.95)':ct.color}}>{ct.label}</p>
+                    {isActive&&<p className="text-[9px]" style={{color:'rgba(255,255,255,.7)'}}>현재</p>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </>
+    )}
+  </Sheet>
+);
+
+/* AddVerseSheet */
+const AddSheet=({onClose,onAdd,showToast})=>{
+  const [ref,setRef]=React.useState('');
+  const [text,setText]=React.useState('');
+  const [cat,setCat]=React.useState('other');
+  const selCat=getCatInfo(cat);
+  const handle=()=>{
+    if(!ref.trim()){showToast('장절을 입력해 주세요');return;}
+    if(!text.trim()){showToast('말씀 본문을 입력해 주세요');return;}
+    onAdd(ref.trim(),text.trim(),cat);showToast('✅ 구절이 추가되었습니다!');
+  };
+  return(
+    <Sheet onClose={onClose} zIndex={80}>
+      {(close)=>(
+        <>
+          <div className="flex items-center justify-between px-6 pt-2 pb-4 border-b border-gray-100">
+            <h2 className="text-base font-extrabold text-gray-900">✏️ 구절 직접 추가</h2>
+            <button onClick={close} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center"><IC.X c="w-4 h-4 text-gray-500"/></button>
+          </div>
+          <div className="px-6 pt-5 space-y-4 overflow-y-auto" style={{maxHeight:'72vh'}}>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">장절 <span className="text-red-400">*</span></label>
+              <input type="text" value={ref} onChange={e=>setRef(e.target.value)}
+                placeholder="예) 롬8:28  또는  [롬8:28]"
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-[15px] placeholder-gray-300 focus:outline-none border border-gray-100"/>
+              <p className="mt-1 text-[10px] text-gray-400">대괄호 없이 입력해도 자동 추가됩니다</p>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-1.5">말씀 본문 <span className="text-red-400">*</span></label>
+              <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="말씀 본문을 입력하세요..." rows={4}
+                className="w-full px-4 py-3 bg-gray-50 rounded-xl text-[15px] placeholder-gray-300 focus:outline-none border border-gray-100 resize-none leading-relaxed"/>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-500 mb-2">카테고리</label>
+              <div className="flex flex-wrap gap-1.5">
+                {CATS.map(ct=>{
+                  const on=cat===ct.id;
+                  return(
+                    <button key={ct.id} onClick={()=>setCat(ct.id)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold border-2 active:scale-95"
+                      style={on?{backgroundColor:ct.color,color:'#fff',borderColor:ct.color}:{backgroundColor:ct.light,color:ct.color,borderColor:ct.bg}}>
+                      {ct.emoji} {ct.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <button onClick={()=>{handle();close();}} className="w-full py-4 text-white font-extrabold rounded-2xl shadow-md active:opacity-80 text-[15px]" style={{backgroundColor:selCat.color}}>
+              ✚ &nbsp;{selCat.emoji} {selCat.label}에 추가하기
+            </button>
+            <div style={{height:'.5rem'}}/>
+          </div>
+        </>
+      )}
+    </Sheet>
+  );
+};
+
+const Toast=({msg})=>!msg?null:(
+  <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] pointer-events-none">
+    <div className="bg-gray-900/90 backdrop-blur-sm text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl whitespace-nowrap">{msg}</div>
+  </div>
+);
+
+const BottomNav=({tab,onChange})=>{
+  const ts=[
+    {id:'home',label:'말씀',Icon:IC.Home2},
+    {id:'search',label:'검색',Icon:IC.Search},
+    {id:'bookmarked',label:'책갈피',Icon:({c,s,act})=><IC.Bookmark c={c} s={s} filled={act}/>},
+    {id:'unmemorized',label:'미암송',Icon:IC.Pencil},
+  ];
+  return(
+    <div className="shrink-0 border-t z-30" style={{background:'rgba(255,255,255,.97)',borderColor:'#E7E0D8',backdropFilter:'blur(12px)',paddingBottom:'max(env(safe-area-inset-bottom),6px)'}}>
+      <div className="max-w-lg mx-auto flex">
+        {ts.map(({id,label,Icon})=>{
+          const on=tab===id;
+          return(
+            <button key={id} onClick={()=>onChange(id)} className="flex-1 flex flex-col items-center py-2 gap-0.5 active:opacity-60">
+              <Icon c="w-[22px] h-[22px]" s={{color:on?'#5B21B6':'#A8A29E'}} act={on}/>
+              <span className="text-[10px] font-bold" style={{color:on?'#5B21B6':'#A8A29E'}}>{label}</span>
+              {on&&<div className="w-1 h-1 rounded-full bg-violet-700"/>}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 };
 
-/* ── 검색 하이라이트 ── */
-const HiText = ({ text, q }) => {
-  if (!q.trim()) return <span>{text}</span>;
-  const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const parts = text.split(new RegExp(`(${esc})`, 'gi'));
-  return (
-    <span>
-      {parts.map((p, i) =>
-        p.toLowerCase() === q.toLowerCase()
-          ? <span key={i} className="font-extrabold text-indigo-800 bg-yellow-200 rounded px-0.5">{p}</span>
-          : <span key={i}>{p}</span>
-      )}
-    </span>
-  );
-};
-
-/* ── Search Bar ── */
-const SearchBar = ({ searchQuery, onChange }) => (
-  <div className="px-4 py-2">
-    <div className="relative flex items-center">
-      <IC.Search c="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" />
-      <input
-        type="text"
-        className="w-full pl-9 pr-9 py-2.5 bg-gray-100 rounded-xl text-[16px] text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:bg-white transition-all"
-        placeholder="말씀이나 장절을 검색해보세요..."
-        value={searchQuery}
-        onChange={e => onChange(e.target.value)}
-      />
-      {searchQuery && (
-        <button onClick={() => onChange('')} className="absolute right-2 w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-          <IC.X c="w-3 h-3 text-gray-600" />
-        </button>
-      )}
+const SearchBar=({q,onChange})=>(
+  <div className="px-4 pb-3">
+    <div className="relative">
+      <IC.Search c="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" s={{color:'#A8A29E'}}/>
+      <input type="text" value={q} onChange={e=>onChange(e.target.value)}
+        placeholder="말씀이나 장절 검색..."
+        className="w-full pl-10 pr-9 py-3 rounded-2xl text-[15px] placeholder-gray-300 focus:outline-none"
+        style={{backgroundColor:'#F0EBE3',caretColor:'#5B21B6'}}/>
+      {q&&<button onClick={()=>onChange('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center" style={{backgroundColor:'#A8A29E'}}><IC.X c="w-3 h-3 text-white"/></button>}
     </div>
   </div>
 );
 
-/* ── Tab Bar (슬라이딩 pill) ── */
-const TabBar = ({ activeTab, onTabChange }) => {
-  const tabs = [
-    { id: 'all',         label: '전체 말씀', emoji: '📖' },
-    { id: 'unmemorized', label: '미암송',    emoji: '📝' },
-    { id: 'bookmarked',  label: '책갈피',    emoji: '★'  },
-  ];
-  const ai = tabs.findIndex(t => t.id === activeTab);
-  return (
-    <div className="px-4 pb-3 pt-1">
-      <div className="relative flex bg-gray-100 rounded-2xl p-1">
-        <div className="absolute top-1 bottom-1 bg-white rounded-xl shadow-sm transition-all duration-300 ease-out pointer-events-none"
-          style={{ left: `calc(${ai * 100/3}% + 4px)`, width: `calc(${100/3}% - 8px)` }} />
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => onTabChange(tab.id)}
-            className={`relative flex-1 py-2 text-xs font-bold rounded-xl z-10 transition-colors duration-300 ${activeTab === tab.id ? 'text-indigo-700' : 'text-gray-400'}`}>
-            <span className="mr-1">{tab.emoji}</span>{tab.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-/* ── Verse Card ── */
-const VerseCard = React.memo(({ verse, onToggleMemorized, onToggleBookmark, onShare, onDelete, searchQuery }) => (
-  <div className={`bg-white mx-4 my-1.5 rounded-2xl border shadow-sm card-press overflow-hidden
-    ${verse.isMemorized ? 'border-indigo-200' : verse.isCustom ? 'border-violet-200' : 'border-gray-100'}`}>
-    {/* 왼쪽 액센트 바 */}
-    <div className="flex">
-      <div className={`w-1 shrink-0 ${verse.isMemorized ? 'bg-indigo-400' : verse.isCustom ? 'bg-violet-300' : 'bg-gray-200'}`} />
-      <div className="flex-1 px-4 py-4">
-        {/* 장절 + 버튼 */}
-        <div className="flex justify-between items-start mb-2.5">
-          <div className="flex-1 mr-2">
-            <span className="font-bold text-indigo-700 text-sm tracking-tight leading-snug">
-              <HiText text={verse.reference} q={searchQuery} />
-            </span>
-            {verse.isCustom && (
-              <span className="ml-1.5 text-[9px] font-bold text-violet-500 bg-violet-50 px-1.5 py-0.5 rounded-full align-middle">내가 추가</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {/* 삭제 (내가 추가한 구절만) */}
-            {verse.isCustom && (
-              <button onClick={() => onDelete(verse.id)}
-                className="w-8 h-8 rounded-xl flex items-center justify-center bg-red-50 active:bg-red-100 transition-colors">
-                <IC.Trash c="w-4 h-4 text-red-400" />
-              </button>
-            )}
-            {/* 공유 */}
-            <button onClick={() => onShare(verse)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50 active:bg-gray-100 transition-colors">
-              <IC.Share c="w-4 h-4 text-gray-400" />
-            </button>
-            {/* 책갈피 */}
-            <button onClick={() => onToggleBookmark(verse.id)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50 active:bg-yellow-50 transition-colors">
-              {verse.isBookmarked
-                ? <IC.BmCheck c="w-4 h-4 text-amber-500" />
-                : <IC.Bookmark c="w-4 h-4 text-gray-300" filled={false} />}
-            </button>
-            {/* 암송 완료 */}
-            <button onClick={() => onToggleMemorized(verse.id)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50 active:bg-indigo-50 transition-colors">
-              {verse.isMemorized
-                ? <IC.Check  c="w-4 h-4 text-indigo-500" />
-                : <IC.Circle c="w-4 h-4 text-gray-300" />}
-            </button>
-          </div>
-        </div>
-        {/* 본문 */}
-        <p className={`text-sm leading-relaxed whitespace-pre-line ${verse.isMemorized ? 'text-gray-400' : 'text-gray-800'}`}>
-          <HiText text={verse.text} q={searchQuery} />
-        </p>
-      </div>
-    </div>
-  </div>
-));
-
-/* ── [FIX 6] 구분된 Empty State ── */
-const EmptyState = ({ activeTab, hasData }) => {
-  const cfg = !hasData
-    ? { emoji: '📖', title: '말씀을 불러오는 중이에요', desc: '잠시만 기다려 주세요.' }
-    : activeTab === 'unmemorized'
-      ? { emoji: '🎉', title: '모든 말씀을 암송했어요!', desc: '정말 대단해요.\n계속해서 복습하며 마음에 새겨요.' }
-      : activeTab === 'bookmarked'
-        ? { emoji: '🔖', title: '책갈피가 비어있어요', desc: '★ 버튼을 눌러\n중요한 말씀을 저장해보세요.' }
-        : { emoji: '🔍', title: '검색 결과가 없어요', desc: '다른 검색어를 입력해보세요.' };
-  return (
+const Empty=({type})=>{
+  const m={
+    bookmarked:{e:'🔖',t:'책갈피가 비어있어요',d:'★ 버튼으로 중요한 말씀을\n저장해보세요.'},
+    unmemorized:{e:'🎉',t:'모든 말씀을 암송했어요!',d:'놀라운 성취!\n계속 복습하며 마음에 새겨요.'},
+    search:{e:'🔍',t:'검색 결과가 없어요',d:'다른 검색어를 입력해보세요.'},
+    none:{e:'📭',t:'해당 구절이 없어요',d:''},
+  }[type]||{e:'📭',t:'구절이 없어요',d:''};
+  return(
     <div className="flex flex-col items-center justify-center py-24 px-8 text-center">
-      <div className="text-5xl mb-4">{cfg.emoji}</div>
-      <h3 className="text-base font-bold text-gray-700 mb-2">{cfg.title}</h3>
-      <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-line">{cfg.desc}</p>
+      <div className="text-5xl mb-4">{m.e}</div>
+      <h3 className="text-base font-bold text-gray-700 mb-2">{m.t}</h3>
+      <p className="text-sm text-gray-400 leading-relaxed whitespace-pre-line">{m.d}</p>
     </div>
   );
 };
 
+/* ── APP ── */
+function App(){
+  const L=useBibleLogic(RAW_BIBLE_TEXT);
+  const [showAdd,setShowAdd]=React.useState(false);
+  const [pickerVerse,setPickerVerse]=React.useState(null);
+  const swipe=useRef(null);
 
-/* ═══════════════════════════════════════════════
-   ④ MAIN APP
-   ═══════════════════════════════════════════════ */
-function App() {
-  const L = useBibleAppLogic(RAW_BIBLE_TEXT);
-  const swipeRef = useRef(null);
-  const slideClass = L.animDir === 'from-right' ? 'anim-from-right' : 'anim-from-left';
-  const [showAddSheet, setShowAddSheet] = React.useState(false);
+  const inCat=!!L.cat;
+  const ci=inCat?getCatInfo(L.cat):null;
+  const pct=L.stats.total>0?Math.round(L.stats.memorized/L.stats.total*100):0;
 
-  /* ── 삭제 확인 ── */
-  const handleDelete = useCallback((id) => {
-    const verse = L.verses.find(v => v.id === id);
-    if (!verse) return;
-    if (window.confirm(`"${verse.reference}" 구절을 삭제할까요?`)) {
-      L.deleteVerse(id);
-      L.showToast('🗑 구절이 삭제되었습니다');
-    }
-  }, [L]);
-
-  /* ── 스와이프로 탭 전환 ── */
-  const onTS = e => {
-    swipeRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  const title=()=>{
+    if(inCat)return`${ci.emoji} ${ci.label}`;
+    return{home:'주요 암송 말씀',search:'전체 검색',bookmarked:'책갈피',unmemorized:'미암송 말씀'}[L.tab];
   };
-  const onTE = e => {
-    if (!swipeRef.current) return;
-    const dx = swipeRef.current.x - e.changedTouches[0].clientX;
-    const dy = swipeRef.current.y - e.changedTouches[0].clientY;
-    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      const i = TABS.indexOf(L.activeTab);
-      if (dx > 0 && i < 2) L.handleTabChange(TABS[i + 1]);
-      if (dx < 0 && i > 0) L.handleTabChange(TABS[i - 1]);
-    }
-    swipeRef.current = null;
+  const sub=()=>{
+    if(inCat)return null;
+    if(L.tab==='home')return '마음에 새기는 하나님의 말씀';
+    if(L.tab==='unmemorized')return '카테고리별로 집중 암송하세요';
+    return null;
   };
 
-  /* ── 진행률 (소수점 1자리) ── */
-  const pct = L.stats.total > 0 ? (L.stats.memorized / L.stats.total * 100).toFixed(1) : '0.0';
+  const onTS=e=>{swipe.current={x:e.touches[0].clientX,y:e.touches[0].clientY};};
+  const onTE=e=>{
+    if(!swipe.current||inCat)return;
+    const dx=swipe.current.x-e.changedTouches[0].clientX;
+    const dy=swipe.current.y-e.changedTouches[0].clientY;
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>55){
+      const i=TABS.indexOf(L.tab);
+      if(dx>0&&i<TABS.length-1)L.changeTab(TABS[i+1]);
+      if(dx<0&&i>0)L.changeTab(TABS[i-1]);
+    }
+    swipe.current=null;
+  };
 
-  return (
-    <div className="fixed inset-0 bg-[#EEF2F7] font-sans flex flex-col overflow-hidden">
+  const showGrid=(L.tab==='home'||L.tab==='unmemorized')&&!inCat;
+  const showList=inCat||L.tab==='search'||L.tab==='bookmarked';
 
-      {/* ── 고정 헤더 ── */}
-      <div className="shrink-0 bg-white border-b border-gray-100 shadow-sm z-30"
-        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+  return(
+    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{background:'#F5F0E8'}}>
+
+      {/* 헤더 */}
+      <div className="shrink-0 z-30" style={{background:'rgba(255,255,255,.97)',borderBottom:'1px solid #EDE6DD',boxShadow:'0 1px 8px rgba(0,0,0,.05)',paddingTop:'env(safe-area-inset-top)'}}>
         <div className="max-w-lg mx-auto">
-          {/* 타이틀 행 */}
           <div className="px-5 pt-4 pb-3 flex justify-between items-center">
-            <div onClick={L.scrollToTop} className="flex items-center gap-2.5 cursor-pointer active:opacity-70 transition-opacity">
-              <div className="w-9 h-9 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-sm shadow-indigo-200">
-                <IC.BookOpen c="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-[1.1rem] font-extrabold text-gray-900 leading-none tracking-tight">주요 암송 말씀</h1>
-                <p className="text-[10px] text-gray-400 font-medium mt-0.5">마음에 새기는 하나님의 말씀</p>
+            <div className="flex items-center gap-3">
+              {inCat
+                ?<button onClick={L.goBack} className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60" style={{backgroundColor:'#F0EBE3'}}><IC.ChevLeft c="w-5 h-5" s={{color:'#5B21B6'}}/></button>
+                :<div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{background:'linear-gradient(135deg,#5B21B6,#4338CA)',boxShadow:'0 2px 8px rgba(91,33,182,.3)'}}><IC.BookOpen c="w-5 h-5 text-white"/></div>
+              }
+              <div onClick={inCat?undefined:L.toTop} className={inCat?'':'cursor-pointer active:opacity-70'}>
+                <h1 className="text-[1.05rem] font-extrabold text-gray-900 leading-none">{title()}</h1>
+                {sub()&&<p className="text-[10px] font-medium mt-0.5" style={{color:'#A8A29E'}}>{sub()}</p>}
               </div>
             </div>
-
-            {/* 진행률 pill */}
-            {L.stats.total > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-full">
-                <div className="w-14 h-1.5 bg-indigo-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-indigo-500 rounded-full transition-all duration-700"
-                    style={{ width: `${parseFloat(pct)}%` }} />
-                </div>
-                <span className="text-xs font-extrabold text-indigo-700">{pct}%</span>
-              </div>
-            )}
-          </div>
-
-          <SearchBar searchQuery={L.searchQuery} onChange={L.handleSearchQuery} />
-          <TabBar activeTab={L.activeTab} onTabChange={L.handleTabChange} />
-        </div>
-      </div>
-
-      {/* ── 스크롤 영역 ── */}
-      <main id="bible-scroll"
-        className="flex-1 overflow-y-auto overscroll-y-contain w-full"
-        style={{ opacity: L.isScrollRestored ? 1 : 0, transition: L.isScrollRestored ? 'opacity 0.15s ease' : 'none', overflowAnchor: 'none' }}
-        onTouchStart={onTS} onTouchEnd={onTE}>
-        <div className="max-w-lg mx-auto py-2 pb-16">
-          {L.displayedVerses.length > 0 ? (
-            <div key={L.activeTab} className={slideClass}>
-              {L.displayedVerses.map(verse => (
-                <VerseCard key={verse.id} verse={verse} searchQuery={L.searchQuery}
-                  onToggleMemorized={L.toggleMemorized}
-                  onToggleBookmark={L.toggleBookmark}
-                  onShare={L.handleShare}
-                  onDelete={handleDelete}
-                />
-              ))}
-              {L.filteredVersesCount > L.visibleCount && (
-                <div className="flex justify-center mt-4 mb-8">
-                  <button onClick={L.handleLoadMore}
-                    className="px-6 py-3 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-600 shadow-sm active:text-indigo-600 transition-colors">
-                    더 보기 {L.visibleCount} / {L.filteredVersesCount}
-                  </button>
+            <div className="flex items-center gap-2">
+              {!inCat&&L.tab==='home'&&L.stats.total>0&&(
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{backgroundColor:'#EDE9FE'}}>
+                  <IC.Check c="w-3.5 h-3.5" s={{color:'#5B21B6'}}/><span className="text-xs font-bold" style={{color:'#5B21B6'}}>{pct}%</span>
                 </div>
               )}
+              <button onClick={()=>setShowAdd(true)} className="w-9 h-9 rounded-xl flex items-center justify-center active:scale-90" style={{background:'linear-gradient(135deg,#5B21B6,#4338CA)',boxShadow:'0 2px 8px rgba(91,33,182,.25)'}}>
+                <IC.Plus c="w-5 h-5 text-white"/>
+              </button>
             </div>
-          ) : (
-            L.isLoaded && <EmptyState activeTab={L.activeTab} hasData={L.verses.length > 0} />
+          </div>
+          {L.tab==='search'&&<SearchBar q={L.q} onChange={L.changeQ}/>}
+        </div>
+      </div>
+
+      {/* 스크롤 영역 */}
+      <main id="bs" className="flex-1 overflow-y-auto overscroll-y-contain w-full"
+        style={{opacity:L.scrollOK?1:0,transition:L.scrollOK?'opacity .15s ease':'none',overflowAnchor:'none'}}
+        onTouchStart={onTS} onTouchEnd={onTE}>
+        <div className="max-w-lg mx-auto">
+
+          {/* 홈 배너 */}
+          {showGrid&&L.tab==='home'&&L.stats.total>0&&(
+            <div className="mx-4 mt-4 mb-2 rounded-2xl p-4 flex items-center gap-4" style={{background:'linear-gradient(135deg,#4C1D95,#1E3A8A)',boxShadow:'0 4px 20px rgba(76,29,149,.25)'}}>
+              <div className="flex-1">
+                <p className="text-[10px] font-semibold mb-0.5" style={{color:'rgba(255,255,255,.7)'}}>전체 암송 진행률</p>
+                <p className="text-white font-extrabold text-2xl leading-none">{pct}<span className="text-base font-bold">%</span></p>
+                <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{backgroundColor:'rgba(255,255,255,.2)'}}>
+                  <div className="h-full rounded-full transition-all duration-700" style={{width:`${pct}%`,backgroundColor:'rgba(255,255,255,.9)'}}/>
+                </div>
+                <p className="text-[10px] mt-1" style={{color:'rgba(255,255,255,.55)'}}>{L.stats.memorized}/{L.stats.total}구절 완료</p>
+              </div>
+              <div className="text-4xl">📖</div>
+            </div>
+          )}
+
+          {showGrid&&L.tab==='unmemorized'&&(
+            <div className="px-4 pt-4 pb-2"><p className="text-xs font-semibold" style={{color:'#78716C'}}>카테고리를 탭하여 미암송 구절만 집중 학습하세요</p></div>
+          )}
+
+          {showGrid&&(
+            <div className="anim-up">
+              <CatGrid catStats={L.catStats} onSelect={L.selectCat} isUnm={L.tab==='unmemorized'}/>
+            </div>
+          )}
+
+          {showList&&(
+            <div>
+              {L.filteredCount>0&&(
+                <div className="px-5 pt-3 pb-1">
+                  <span className="text-xs font-semibold" style={{color:'#A8A29E'}}>
+                    {L.filteredCount}구절{L.tab==='unmemorized'&&inCat&&' (미암송)'}
+                  </span>
+                </div>
+              )}
+              {L.displayed.length===0
+                ?<Empty type={L.tab==='bookmarked'?'bookmarked':L.tab==='search'?'search':L.tab==='unmemorized'?'unmemorized':'none'}/>
+                :(
+                  <>
+                    <div className="pt-2 pb-4">
+                      {L.displayed.map(v=>(
+                        <VerseCard key={v.id} verse={v} onM={L.toggleM} onB={L.toggleB}
+                          onShare={L.share} q={L.q} onCatTap={setPickerVerse}/>
+                      ))}
+                    </div>
+                    {L.vc<L.filteredCount&&(
+                      <div className="px-4 pb-8">
+                        <button onClick={L.loadMore} className="w-full py-3.5 text-sm font-bold rounded-2xl border-2 active:opacity-70"
+                          style={{borderColor:'#DDD6FE',color:'#5B21B6',backgroundColor:'#F5F3FF'}}>
+                          더 보기 ({L.filteredCount-L.vc}개 남음)
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )
+              }
+            </div>
           )}
         </div>
       </main>
 
-      <Toast message={L.toastMsg} />
+      <BottomNav tab={L.tab} onChange={L.changeTab}/>
 
-      {/* ── + 플로팅 버튼 ── */}
-      {!L.searchQuery && (
-        <button
-          onClick={() => setShowAddSheet(true)}
-          className="fixed z-[50] right-5 shadow-xl shadow-indigo-300/60 active:scale-95 transition-transform"
-          style={{ bottom: `calc(max(env(safe-area-inset-bottom), 0.5rem) + ${L.stats.total > 0 ? '4rem' : '1rem'})` }}>
-          <div className="w-14 h-14 bg-indigo-600 rounded-full flex items-center justify-center">
-            <IC.Plus c="w-7 h-7 text-white" />
-          </div>
-        </button>
+      {showAdd&&<AddSheet onClose={()=>setShowAdd(false)} onAdd={L.addVerse} showToast={L.showToast}/>}
+      {pickerVerse&&(
+        <CatPickerSheet verse={pickerVerse} onClose={()=>setPickerVerse(null)}
+          onSelect={(id,nc)=>{L.updateCat(id,nc);L.showToast(`✅ ${getCatInfo(nc).emoji} ${getCatInfo(nc).label}(으)로 이동했어요`);setPickerVerse(null);}}/>
       )}
-
-      {/* ── 구절 추가 시트 ── */}
-      {showAddSheet && (
-        <AddVerseSheet
-          onClose={() => setShowAddSheet(false)}
-          onAdd={L.addVerse}
-          showToast={L.showToast}
-        />
-      )}
-
-      {/* 하단 통계 바 */}
-      {L.stats.total > 0 && (
-        <div className="shrink-0 bg-white border-t border-gray-100 z-20"
-          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}>
-          <div className="max-w-lg mx-auto px-5 py-2.5 flex justify-around">
-            {[
-              ['전체',   L.stats.total,      'text-gray-700'],
-              ['암송 완료', L.stats.memorized,  'text-indigo-600'],
-              ['책갈피', L.stats.bookmarked, 'text-amber-500'],
-            ].map(([label, val, cl]) => (
-              <div key={label} className="flex flex-col items-center">
-                <span className={`text-base font-extrabold ${cl}`}>{val}</span>
-                <span className="text-[10px] text-gray-400 font-medium mt-0.5">{label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <Toast msg={L.toast}/>
     </div>
   );
 }
@@ -1545,6 +1505,7 @@ Commit to the LORD whatever you do, and your plans will succeed.
 [요8:32] 진리를 알지니 진리가 너희를 자유롭게 하리라
 [행16:31] 이르되 주 예수를 믿으라 그리하면 너와 네 집이 구원을 받으리라 하고
 [고전15:58] 그러므로 내 사랑하는 형제들아 견실하며 흔들리지 말고 항상 주의 일에 더욱 힘쓰는 자들이 되라 이는 너희 수고가 주 안에서 헛되지 않은 줄 앎이라`;
+
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
