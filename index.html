@@ -131,10 +131,9 @@ function useBibleLogic(raw){
   const initUI=useMemo(()=>{
     try{
       const s=JSON.parse(localStorage.getItem('bible_v3')||'null');
-      /* 재시작 시 항상 홈(카테고리 그리드)에서 시작, 스크롤 위치만 복원 */
-      if(s)return{tab:'home',scrolls:{...DEF_SCROLLS(),...(s.scrolls||{})},q:''};
+      if(s)return{tab:'home',scrolls:{...DEF_SCROLLS(),...(s.scrolls||{})},q:'',catScrolls:s.catScrolls||{}};
     }catch(e){}
-    return{tab:'home',scrolls:DEF_SCROLLS(),q:''};
+    return{tab:'home',scrolls:DEF_SCROLLS(),q:'',catScrolls:{}};
   },[]);
 
   const [tab,setTab]=useState(initUI.tab);
@@ -147,7 +146,7 @@ function useBibleLogic(raw){
   const vcRef=useRef(40);
   const scrollsRef=useRef(initUI.scrolls);
   const catRef=useRef(null);
-  const catScrollsRef=useRef({});   /* {tabId_catId: scrollY} */
+  const catScrollsRef=useRef(initUI.catScrolls); /* {tabId_catId: scrollY} — localStorage에도 저장 */
   const timerRef=useRef(null);      /* single scroll-restore timer slot */
   useEffect(()=>{vcRef.current=vc;},[vc]);
   useEffect(()=>{scrollsRef.current=scrolls;},[scrolls]);
@@ -155,7 +154,7 @@ function useBibleLogic(raw){
 
   const el=()=>document.getElementById('bs');
   const saveUI=useCallback((t,sc,query)=>{
-    try{localStorage.setItem('bible_v3',JSON.stringify({tab:t,scrolls:sc,q:query}));}catch(e){}
+    try{localStorage.setItem('bible_v3',JSON.stringify({tab:t,scrolls:sc,q:query,catScrolls:catScrollsRef.current}));}catch(e){}
   },[]);
 
   /* load */
@@ -245,6 +244,7 @@ function useBibleLogic(raw){
       const e=el();if(!e)return;
       if(catRef.current){
         catScrollsRef.current[`${tab}_${catRef.current}`]=e.scrollTop;
+        saveUI(tab,scrollsRef.current,q);   /* catScrolls도 함께 저장 */
       } else {
         const sc={...scrollsRef.current,[tab]:e.scrollTop};
         setScrolls(sc);saveUI(tab,sc,q);
@@ -598,13 +598,17 @@ function App(){
 
   const onTS=e=>{swipe.current={x:e.touches[0].clientX,y:e.touches[0].clientY};};
   const onTE=e=>{
-    if(!swipe.current||inCat)return;
+    if(!swipe.current)return;
     const dx=swipe.current.x-e.changedTouches[0].clientX;
     const dy=swipe.current.y-e.changedTouches[0].clientY;
     if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>55){
-      const i=TABS.indexOf(L.tab);
-      if(dx>0&&i<TABS.length-1)L.changeTab(TABS[i+1]);
-      if(dx<0&&i>0)L.changeTab(TABS[i-1]);
+      if(inCat){
+        if(dx<0) L.goBack();   /* 카테고리 안: 오른쪽 스와이프 → 뒤로 */
+      } else {
+        const i=TABS.indexOf(L.tab);
+        if(dx>0&&i<TABS.length-1)L.changeTab(TABS[i+1]);
+        if(dx<0&&i>0)L.changeTab(TABS[i-1]);
+      }
     }
     swipe.current=null;
   };
@@ -624,7 +628,7 @@ function App(){
                 ?<button onClick={L.goBack} className="w-9 h-9 rounded-xl flex items-center justify-center active:opacity-60" style={{backgroundColor:'#F0EBE3'}}><IC.ChevLeft c="w-5 h-5" s={{color:'#5B21B6'}}/></button>
                 :<div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{background:'linear-gradient(135deg,#5B21B6,#4338CA)',boxShadow:'0 2px 8px rgba(91,33,182,.3)'}}><IC.BookOpen c="w-5 h-5 text-white"/></div>
               }
-              <div onClick={inCat?undefined:L.toTop} className={inCat?'':'cursor-pointer active:opacity-70'}>
+              <div onClick={L.toTop} className="cursor-pointer active:opacity-70">
                 <h1 className="text-[1.05rem] font-extrabold text-gray-900 leading-none">{title()}</h1>
                 {sub()&&<p className="text-[10px] font-medium mt-0.5" style={{color:'#A8A29E'}}>{sub()}</p>}
               </div>
@@ -710,7 +714,7 @@ function App(){
         </div>
       </main>
 
-      <BottomNav tab={L.tab} onChange={L.changeTab}/>
+      <BottomNav tab={L.tab} onChange={(id)=>{ if(id==='home'&&inCat) L.goBack(); else L.changeTab(id); }}/>
 
       {showAdd&&<AddSheet onClose={()=>setShowAdd(false)} onAdd={L.addVerse} showToast={L.showToast}/>}
       {pickerVerse&&(
