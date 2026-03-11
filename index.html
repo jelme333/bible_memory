@@ -127,12 +127,12 @@ function useBibleLogic(raw){
   const base=useMemo(()=>parseVerses(raw),[]);
   const [verses,setVerses]=useState(()=>parseVerses(raw));
   const [isLoaded,setIsLoaded]=useState(false);
-  const [scrollOK,setScrollOK]=useState(false);
 
   const initUI=useMemo(()=>{
     try{
       const s=JSON.parse(localStorage.getItem('bible_v3')||'null');
-      if(s)return{tab:s.tab||'home',scrolls:{...DEF_SCROLLS(),...(s.scrolls||{})},q:s.q||''};
+      /* 재시작 시 항상 홈(카테고리 그리드)에서 시작, 스크롤 위치만 복원 */
+      if(s)return{tab:'home',scrolls:{...DEF_SCROLLS(),...(s.scrolls||{})},q:''};
     }catch(e){}
     return{tab:'home',scrolls:DEF_SCROLLS(),q:''};
   },[]);
@@ -147,6 +147,8 @@ function useBibleLogic(raw){
   const vcRef=useRef(40);
   const scrollsRef=useRef(initUI.scrolls);
   const catRef=useRef(null);
+  const catScrollsRef=useRef({});   /* {tabId_catId: scrollY} */
+  const timerRef=useRef(null);      /* single scroll-restore timer slot */
   useEffect(()=>{vcRef.current=vc;},[vc]);
   useEffect(()=>{scrollsRef.current=scrolls;},[scrolls]);
   useEffect(()=>{catRef.current=cat;},[cat]);
@@ -194,43 +196,59 @@ function useBibleLogic(raw){
 
   /* tab change */
   const changeTab=useCallback((nt)=>{
-    const sc={...scrollsRef.current,[tab]:el()?.scrollTop||0};
-    setScrolls(sc);setCat(null);setQ('');setVc(40);setScrollOK(false);setTab(nt);saveUI(nt,sc,'');
+    if(nt===tab)return;                                   /* 같은 탭 연속 탭 방지 */
+    clearTimeout(timerRef.current);
+    const e=el();
+    /* 카테고리 안에 있었다면 그 스크롤도 저장 */
+    if(catRef.current&&e) catScrollsRef.current[`${tab}_${catRef.current}`]=e.scrollTop;
+    const sc={...scrollsRef.current,[tab]:catRef.current?scrollsRef.current[tab]:e?.scrollTop||0};
+    setScrolls(sc);setCat(null);setQ('');setVc(40);setTab(nt);saveUI(nt,sc,'');
   },[tab,saveUI]);
 
   /* category select */
   const selectCat=useCallback((cid)=>{
-    const sc={...scrollsRef.current,[tab]:el()?.scrollTop||0};
-    setScrolls(sc);setCat(cid);setVc(40);setScrollOK(true);
-    setTimeout(()=>{el()?.scrollTo({top:0,behavior:'instant'});},0);
+    clearTimeout(timerRef.current);
+    const e=el();
+    const sc={...scrollsRef.current,[tab]:e?.scrollTop||0};
+    setScrolls(sc);setCat(cid);setVc(40);
+    /* 다음 프레임에 해당 카테고리의 저장된 스크롤로 복원 */
+    timerRef.current=setTimeout(()=>{
+      const saved=catScrollsRef.current[`${tab}_${cid}`]||0;
+      el()?.scrollTo({top:saved,behavior:'instant'});
+    },0);
   },[tab]);
 
   /* back */
   const goBack=useCallback(()=>{
-    setCat(null);setVc(40);setScrollOK(false);
-    setTimeout(()=>{
-      const e=el();
-      if(e){e.scrollTop=scrollsRef.current[tab]||0;setScrollOK(true);}
-    },50);
+    clearTimeout(timerRef.current);
+    const e=el();
+    if(catRef.current&&e) catScrollsRef.current[`${tab}_${catRef.current}`]=e.scrollTop;
+    setCat(null);setVc(40);
+    timerRef.current=setTimeout(()=>{
+      el()?.scrollTo({top:scrollsRef.current[tab]||0,behavior:'instant'});
+    },0);
   },[tab]);
 
-  /* scroll restore on tab switch */
+  /* 탭 전환 시 스크롤 동기 복원 (카테고리 안이면 스킵) */
   useLayoutEffect(()=>{
     if(!isLoaded||catRef.current)return;
-    const e=el();if(!e)return;
-    const t=setTimeout(()=>{e.scrollTop=scrollsRef.current[tab]||0;setScrollOK(true);},70);
-    return()=>clearTimeout(t);
+    clearTimeout(timerRef.current);
+    const e=el();
+    if(e) e.scrollTop=scrollsRef.current[tab]||0;
   },[tab,isLoaded]);
 
-  /* save scroll position */
+  /* 스크롤 위치 자동 저장 */
   useEffect(()=>{
     if(!isLoaded)return;
     let tid;
     const save=()=>{
-      if(catRef.current)return;
       const e=el();if(!e)return;
-      const sc={...scrollsRef.current,[tab]:e.scrollTop};
-      setScrolls(sc);saveUI(tab,sc,q);
+      if(catRef.current){
+        catScrollsRef.current[`${tab}_${catRef.current}`]=e.scrollTop;
+      } else {
+        const sc={...scrollsRef.current,[tab]:e.scrollTop};
+        setScrolls(sc);saveUI(tab,sc,q);
+      }
     };
     const onS=()=>{clearTimeout(tid);tid=setTimeout(save,150);};
     const onH=()=>{if(document.visibilityState==='hidden')save();};
@@ -282,7 +300,7 @@ function useBibleLogic(raw){
   },[showToast]);
   const toTop=useCallback(()=>el()?.scrollTo({top:0,behavior:'smooth'}),[]);
 
-  return{verses,displayed,filteredCount:filtered.length,tab,changeTab,cat,selectCat,goBack,q,changeQ,scrollOK,toggleM,toggleB,updateCat,share,addVerse,vc,loadMore,toast,showToast,toTop,isLoaded,stats,catStats};
+  return{verses,displayed,filteredCount:filtered.length,tab,changeTab,cat,selectCat,goBack,q,changeQ,toggleM,toggleB,updateCat,share,addVerse,vc,loadMore,toast,showToast,toTop,isLoaded,stats,catStats};
 }
 
 /* ── UI COMPONENTS ── */
@@ -628,7 +646,7 @@ function App(){
 
       {/* 스크롤 영역 */}
       <main id="bs" className="flex-1 overflow-y-auto overscroll-y-contain w-full"
-        style={{opacity:L.scrollOK?1:0,transition:L.scrollOK?'opacity .15s ease':'none',overflowAnchor:'none'}}
+        style={{overflowAnchor:'none'}}
         onTouchStart={onTS} onTouchEnd={onTE}>
         <div className="max-w-lg mx-auto">
 
