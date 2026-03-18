@@ -356,6 +356,8 @@ const VerseCard=React.memo(({verse,onM,onB,onShare,q,onCatTap})=>{
 const CatGrid=({catStats,onSelect,isUnm})=>{
   const visible=CATS.filter(ct=>{
     const s=catStats[ct.id];
+    /* 지혜(wisdom)는 구절이 없어도 항상 표시 */
+    if(ct.id==='wisdom') return true;
     if(!s||s.total===0)return false;
     if(isUnm&&s.unm===0)return false;
     return true;
@@ -364,17 +366,24 @@ const CatGrid=({catStats,onSelect,isUnm})=>{
     <div className="px-4 pt-3 pb-8 grid grid-cols-2 gap-3">
       {visible.map(ct=>{
         const s=catStats[ct.id]||{total:0,mem:0,unm:0};
+        const isEmpty=s.total===0;
         const cnt=isUnm?s.unm:s.total;
         const pct=s.total>0?Math.round(s.mem/s.total*100):0;
         return(
-          <div key={ct.id} onClick={()=>onSelect(ct.id)} className="cat-card cursor-pointer rounded-2xl overflow-hidden border" style={{backgroundColor:ct.light,borderColor:ct.bg+'cc'}}>
+          <div key={ct.id} onClick={()=>!isEmpty&&onSelect(ct.id)}
+            className={`cat-card rounded-2xl overflow-hidden border ${isEmpty?'opacity-50':'cursor-pointer'}`}
+            style={{backgroundColor:ct.light,borderColor:ct.bg+'cc',borderStyle:isEmpty?'dashed':'solid'}}>
             <div className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl" style={{backgroundColor:ct.bg}}>{ct.emoji}</div>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full" style={{backgroundColor:ct.bg,color:ct.color}}>{cnt}구절</span>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full" style={{backgroundColor:ct.bg,color:ct.color}}>
+                  {isEmpty?'준비 중':cnt+'구절'}
+                </span>
               </div>
               <p className="text-[13px] font-bold text-gray-800">{ct.label}</p>
-              {!isUnm&&(
+              {isEmpty?(
+                <p className="text-[10px] mt-1.5 text-gray-400">기타에서 구절을 이동해 주세요</p>
+              ):!isUnm?(
                 <div className="mt-2.5">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[9px] text-gray-400">암송 완료</span>
@@ -384,8 +393,9 @@ const CatGrid=({catStats,onSelect,isUnm})=>{
                     <div className="h-full rounded-full transition-all duration-700" style={{width:`${pct}%`,backgroundColor:ct.color}}/>
                   </div>
                 </div>
+              ):(
+                <p className="text-[10px] mt-1.5" style={{color:ct.color}}>탭하여 학습 →</p>
               )}
-              {isUnm&&<p className="text-[10px] mt-1.5" style={{color:ct.color}}>탭하여 학습 →</p>}
             </div>
           </div>
         );
@@ -584,6 +594,23 @@ function App(){
   const [showAdd,setShowAdd]=React.useState(false);
   const [pickerVerse,setPickerVerse]=React.useState(null);
   const swipe=useRef(null);
+  /* 최초 마운트 여부 추적 — 탭 전환 opacity 사이클과 구분 */
+  const isFirstMountRef=useRef(true);
+  /* 로딩 완료 시 fade-in 트리거 */
+  const [fadeIn,setFadeIn]=React.useState(false);
+  useEffect(()=>{
+    if(L.isLoaded){
+      /* rAF 한 프레임 뒤에 opacity 1 → CSS transition이 확실히 작동 */
+      requestAnimationFrame(()=>setFadeIn(true));
+      isFirstMountRef.current=false;
+    }
+  },[L.isLoaded]);
+  /* 백그라운드→포그라운드 복귀 시 항상 보이도록 보장 */
+  useEffect(()=>{
+    const onV=()=>{if(document.visibilityState==='visible') setFadeIn(true);};
+    document.addEventListener('visibilitychange',onV);
+    return()=>document.removeEventListener('visibilitychange',onV);
+  },[]);
 
   const inCat=!!L.cat;
   const ci=inCat?getCatInfo(L.cat):null;
@@ -621,7 +648,8 @@ function App(){
   const showList=inCat||L.tab==='search'||L.tab==='bookmarked';
 
   return(
-    <div className="fixed inset-0 flex flex-col overflow-hidden" style={{background:'#F5F0E8'}}>
+    <div className="fixed inset-0 flex flex-col overflow-hidden"
+      style={{background:'#F5F0E8',opacity:fadeIn?1:0,transition:fadeIn?'opacity 0.28s ease':'none'}}>
 
       {/* 헤더 */}
       <div className="shrink-0 z-30" style={{background:'rgba(255,255,255,.97)',borderBottom:'1px solid #EDE6DD',boxShadow:'0 1px 8px rgba(0,0,0,.05)',paddingTop:'env(safe-area-inset-top)'}}>
