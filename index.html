@@ -47,6 +47,7 @@ const IC={
   Check:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
   X:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>,
   Share:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>,
+  Copy:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path strokeLinecap="round" strokeLinejoin="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>,
   Plus:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/></svg>,
   ChevLeft:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6"/></svg>,
   Home2:({c,s})=><svg className={c} style={s} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
@@ -134,25 +135,17 @@ function useBibleLogic(raw){
   const [verses,setVerses]=useState(()=>parseVerses(raw));
   const [isLoaded,setIsLoaded]=useState(false);
 
-  const initUI=useMemo(()=>{
-    try{
-      const s=JSON.parse(localStorage.getItem('bible_v3')||'null');
-      if(s)return{tab:'home',scrolls:{...DEF_SCROLLS(),...(s.scrolls||{})},q:'',catScrolls:s.catScrolls||{}};
-    }catch(e){}
-    return{tab:'home',scrolls:DEF_SCROLLS(),q:'',catScrolls:{}};
-  },[]);
-
-  const [tab,setTab]=useState(initUI.tab);
+  const [tab,setTab]=useState('home');
   const [cat,setCat]=useState(null);         /* selected category */
-  const [scrolls,setScrolls]=useState(initUI.scrolls);
-  const [q,setQ]=useState(initUI.q);
+  const [scrolls,setScrolls]=useState(DEF_SCROLLS());
+  const [q,setQ]=useState('');
   const [vc,setVc]=useState(40);             /* visibleCount */
   const [toast,setToast]=useState('');
 
   const vcRef=useRef(40);
-  const scrollsRef=useRef(initUI.scrolls);
+  const scrollsRef=useRef(DEF_SCROLLS());
   const catRef=useRef(null);
-  const catScrollsRef=useRef(initUI.catScrolls); /* {tabId_catId: scrollY} — localStorage에도 저장 */
+  const catScrollsRef=useRef({}); /* {tabId_catId: scrollY} — IndexedDB(bui)에 저장 */
   const timerRef=useRef(null);      /* single scroll-restore timer slot */
   useEffect(()=>{vcRef.current=vc;},[vc]);
   useEffect(()=>{scrollsRef.current=scrolls;},[scrolls]);
@@ -160,12 +153,12 @@ function useBibleLogic(raw){
 
   const el=()=>document.getElementById('bs');
   const saveUI=useCallback((t,sc,query)=>{
-    try{localStorage.setItem('bible_v3',JSON.stringify({tab:t,scrolls:sc,q:query,catScrolls:catScrollsRef.current}));}catch(e){}
+    dbHelper.set('bui',{tab:t,scrolls:sc,q:query,catScrolls:catScrollsRef.current});
   },[]);
 
   /* load */
   useEffect(()=>{
-    Promise.all([dbHelper.get('bsave'),dbHelper.get('bcustom')]).then(([saved,custom])=>{
+    Promise.all([dbHelper.get('bsave'),dbHelper.get('bcustom'),dbHelper.get('bui')]).then(([saved,custom,ui])=>{
       let merged=[...base];
       if(Array.isArray(custom)&&custom.length>0){
         const mx=Math.max(...merged.map(v=>v.id),0);
@@ -176,6 +169,14 @@ function useBibleLogic(raw){
           const d=saved[v.reference]||saved[v.id]||null;
           return d?{...v,isMemorized:d.m||false,isBookmarked:d.b||false,category:d.c||v.category}:v;
         });
+      }
+      /* UI 상태 복원 (IndexedDB → bui) */
+      if(ui){
+        const sc={...DEF_SCROLLS(),...(ui.scrolls||{})};
+        setTab(ui.tab||'home');
+        setScrolls(sc);scrollsRef.current=sc;
+        if(ui.q)setQ(ui.q);
+        catScrollsRef.current=ui.catScrolls||{};
       }
       setVerses(merged);setIsLoaded(true);
     }).catch(()=>setIsLoaded(true));
@@ -276,7 +277,7 @@ function useBibleLogic(raw){
     if(tab==='bookmarked'&&!v.isBookmarked)return false;
     if(tab==='unmemorized'&&v.isMemorized)return false;
     if(cat&&v.category!==cat)return false;
-    if(q.trim()){const lq=q.trim().toLowerCase();return v.reference.toLowerCase().includes(lq)||v.text.toLowerCase().includes(lq);}
+    if(q.trim()){const words=q.trim().toLowerCase().split(/\s+/).filter(Boolean);const ref=v.reference.toLowerCase();const txt=v.text.toLowerCase();return words.every(w=>ref.includes(w)||txt.includes(w));}
     return true;
   }),[verses,tab,cat,q]);
 
@@ -304,9 +305,14 @@ function useBibleLogic(raw){
     if(navigator.share){try{await navigator.share({title:'말씀 공유',text:txt});}catch(e){}}
     else{try{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('말씀이 복사되었습니다!');}catch(e){}}
   },[showToast]);
+  const copyVerse=useCallback(async(verse)=>{
+    const txt=`${verse.reference}\n${verse.text}`;
+    try{await navigator.clipboard.writeText(txt);showToast('📋 말씀이 복사되었습니다!');}
+    catch(e){try{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('📋 말씀이 복사되었습니다!');}catch(e2){showToast('❌ 복사에 실패했습니다.');}}
+  },[showToast]);
   const toTop=useCallback(()=>el()?.scrollTo({top:0,behavior:'smooth'}),[]);
 
-  return{verses,displayed,filteredCount:filtered.length,tab,changeTab,cat,selectCat,goBack,q,changeQ,toggleM,toggleB,updateCat,share,addVerse,vc,loadMore,toast,showToast,toTop,isLoaded,stats,catStats};
+  return{verses,displayed,filteredCount:filtered.length,tab,changeTab,cat,selectCat,goBack,q,changeQ,toggleM,toggleB,updateCat,share,copyVerse,addVerse,vc,loadMore,toast,showToast,toTop,isLoaded,stats,catStats};
 }
 
 /* ── BACKUP LOGIC ── */
@@ -355,13 +361,15 @@ const importBackup=async(file,showToast)=>{
 
 const HiText=({text,q})=>{
   if(!q||!q.trim())return <span>{text}</span>;
-  const esc=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  const words=q.trim().split(/\s+/).filter(Boolean);
+  const esc=words.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|');
   const parts=text.split(new RegExp(`(${esc})`,'gi'));
-  return<span>{parts.map((p,i)=>p.toLowerCase()===q.toLowerCase()?<span key={i} className="font-extrabold bg-yellow-200 rounded px-0.5" style={{color:'#92400E'}}>{p}</span>:<span key={i}>{p}</span>)}</span>;
+  const wset=new Set(words.map(w=>w.toLowerCase()));
+  return<span>{parts.map((p,i)=>wset.has(p.toLowerCase())?<span key={i} className="font-extrabold bg-yellow-200 rounded px-0.5" style={{color:'#92400E'}}>{p}</span>:<span key={i}>{p}</span>)}</span>;
 };
 
 /* VerseCard — 카테고리 태그 탭으로 변경 가능 */
-const VerseCard=React.memo(({verse,onM,onB,onShare,q,onCatTap})=>{
+const VerseCard=React.memo(({verse,onM,onB,onShare,onCopy,q,onCatTap})=>{
   const ct=getCatInfo(verse.category);
   return(
     <div className={`bg-white mx-4 my-1.5 rounded-2xl border shadow-sm card-press overflow-hidden ${verse.isMemorized?'border-violet-100':'border-stone-100'}`}>
@@ -378,6 +386,7 @@ const VerseCard=React.memo(({verse,onM,onB,onShare,q,onCatTap})=>{
               </button>
             </div>
             <div className="flex items-center gap-1 shrink-0">
+              <button onClick={()=>onCopy(verse)} title="복사" className="w-8 h-8 rounded-xl flex items-center justify-center active:scale-90" style={{backgroundColor:'#F9FAFB'}}><IC.Copy c="w-4 h-4 text-gray-400"/></button>
               <button onClick={()=>onShare(verse)} className="w-8 h-8 rounded-xl flex items-center justify-center" style={{backgroundColor:'#F9FAFB'}}><IC.Share c="w-4 h-4 text-gray-400"/></button>
               <button onClick={()=>onB(verse.id)} className="w-8 h-8 rounded-xl flex items-center justify-center active:scale-90" style={{backgroundColor:verse.isBookmarked?'#FEF3C7':'#F9FAFB'}}>
                 {verse.isBookmarked?<IC.BmCheck c="w-4 h-4" s={{color:'#D97706'}}/>:<IC.Bookmark c="w-4 h-4 text-gray-300" filled={false}/>}
@@ -843,7 +852,7 @@ function App(){
                     <div className="pt-2 pb-4">
                       {L.displayed.map(v=>(
                         <VerseCard key={v.id} verse={v} onM={L.toggleM} onB={L.toggleB}
-                          onShare={L.share} q={L.q} onCatTap={setPickerVerse}/>
+                          onShare={L.share} onCopy={L.copyVerse} q={L.q} onCatTap={setPickerVerse}/>
                       ))}
                     </div>
                     {L.vc<L.filteredCount&&(
